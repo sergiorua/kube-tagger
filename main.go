@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Sergio Rua
+Copyright 2019 Sergio Rua
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -72,12 +72,9 @@ func main() {
 	for i := range volumeClaims.Items {
 		namespace := volumeClaims.Items[i].GetNamespace()
 		volumeClaimName := volumeClaims.Items[i].GetName()
-		volumeClaim, errp := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(volumeClaimName, metav1.GetOptions{})
-		if errp != nil {
-			fmt.Println(errp)
-			continue
-		}
+		volumeClaim := volumeClaims.Items[i]
 		volumeName := volumeClaim.Spec.VolumeName
+		fmt.Println(volumeName)		
 
 		awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 		if errp != nil {
@@ -87,12 +84,12 @@ func main() {
 		awsVolumeId := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
 		fmt.Printf("\nVolume Claim: %s\n", volumeClaimName)
+		fmt.Printf("\tNamespace: %s\n", namespace)
 		fmt.Printf("\tVolume: %s\n", volumeName)
 		fmt.Printf("\tAWS Volume ID: %s\n", awsVolumeId)
-		if isEBSVolume(volumeClaim) {
+		if isEBSVolume(&volumeClaim) {
 			for k,v := range volumeClaim.Annotations {
 				if k == "volume.beta.kubernetes.io/additional-resource-tags" {
-					//fmt.Printf("\tAdding tags found on %s: %s\n", k, v)
 					addAWSTags(v, awsVolumeId)
 				}
 			}
