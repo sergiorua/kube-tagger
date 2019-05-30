@@ -40,5 +40,5 @@ spec:
   containers:
   - name: kube-tagger
     imagePullPolicy: Always
-    image: sergrua/kube-tagger:0.0.1
+    image: sergrua/kube-tagger:latest
     command: ["/app/main"]
