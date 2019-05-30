@@ -39,12 +39,10 @@ import (
 var verbose bool
 var local bool
 var kubeconfig string
-var oneshot bool
 
 func init() {
-	flag.BoolVar(&verbose, "d", false, "Verbose")
-	flag.BoolVar(&local, "l", false, "Run outside kube cluster")
-	flag.BoolVar(&oneshot, "1", false, "Run only once and exit")
+	flag.BoolVar(&verbose, "v", false, "Verbose")
+	flag.BoolVar(&local, "l", false, "Run outside kube cluster (dev purposes)")
 
 	if home := homeDir(); home != "" {
 		flag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -74,7 +72,7 @@ func main() {
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		log.Fatalln(err.Error())
 	}
 
 	/* Current list at boot */
@@ -89,7 +87,7 @@ func main() {
 
 	watcher, err := clientset.CoreV1().PersistentVolumeClaims("").Watch(metav1.ListOptions{})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	/* changes */
 	ch := watcher.ResultChan()
@@ -122,6 +120,8 @@ func main() {
 						addAWSTags(v, awsVolumeID)
 					}
 				}
+			} else {
+				log.Printf("\t=> Volume is not EBS. Ignoring")
 			}
 		}
 	}
@@ -185,7 +185,7 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
     }
     ret, err := svc.CreateTags(tags)
     if err != nil {
-        log.Println(err)
+        log.Fatal(err)
         return false
 	}
 	if verbose {
