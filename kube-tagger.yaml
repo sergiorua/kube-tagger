@@ -1,0 +1,44 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  namespace: default
+  name: kube-tagger
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["persistentvolumeclaims", "persistentvolumes"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-tagger
+automountServiceAccountToken: true
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: kube-tagger-binding
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: kube-tagger
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: kube-tagger
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-tagger
+  labels:
+    app: kube-tagger
+spec:
+  serviceAccountName: kube-tagger
+  containers:
+  - name: kube-tagger
+    imagePullPolicy: Always
+    image: sergrua/kube-tagger:0.0.1
+    command: ["/app/main"]

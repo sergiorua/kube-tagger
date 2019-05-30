@@ -8,7 +8,8 @@ RUN go get -d -v ./... && go install -v ./...
 
 RUN go build main.go && ls -l && echo $GOPATH
 
-FROM alpine
+FROM golang:1.12
+RUN mkdir /app
 COPY --from=builder /go/src/github.com/sergiorua/kube-tagger/main /app/
 WORKDIR /app
 CMD ["./main"]
