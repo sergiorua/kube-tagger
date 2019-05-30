@@ -17,7 +17,7 @@ Multiple tags are ; separated.
 
 ## Deploy
 
-See [kube-tagger.yaml kube-tagger.yaml] for an example deployment.
+See [kube-tagger.yaml](https://github.com/sergiorua/kube-tagger/blob/master/kube-tagger.yaml) for an example deployment.
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/sergiorua/kube-tagger/master/kube-tagger.yaml
