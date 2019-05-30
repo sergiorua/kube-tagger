@@ -18,18 +18,18 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"regexp"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -77,29 +77,45 @@ func main() {
 		panic(err.Error())
 	}
 
+	/* Current list at boot */
+	/* ** not currently used **
 	volumeClaims, err := clientset.CoreV1().PersistentVolumeClaims("").List(metav1.ListOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
 
-	for {
-		for i := range volumeClaims.Items {
-			namespace := volumeClaims.Items[i].GetNamespace()
-			volumeClaimName := volumeClaims.Items[i].GetName()
-			volumeClaim := volumeClaims.Items[i]
+	log.Println(volumeClaims)
+	*/
+
+	watcher, err := clientset.CoreV1().PersistentVolumeClaims("").Watch(metav1.ListOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	/* changes */
+	ch := watcher.ResultChan()
+
+	for event := range ch {
+		pvc, ok := event.Object.(*v1.PersistentVolumeClaim)
+		if !ok {
+			log.Fatal("unexpected type")
+		}
+		if event.Type == watch.Added || event.Type == watch.Modified {
+			namespace := pvc.GetNamespace()
+			volumeClaimName := pvc.GetName()
+			volumeClaim := *pvc
 			volumeName := volumeClaim.Spec.VolumeName
 
 			awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 			if errp != nil {
-				fmt.Printf("Cannot find EBS volme associated with %s: %s", volumeName, errp)
+				log.Printf("Cannot find EBS volme associated with %s: %s", volumeName, errp)
 				continue
 			}
 			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
-			fmt.Printf("\nVolume Claim: %s\n", volumeClaimName)
-			fmt.Printf("\tNamespace: %s\n", namespace)
-			fmt.Printf("\tVolume: %s\n", volumeName)
-			fmt.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
+			log.Printf("\nVolume Claim: %s\n", volumeClaimName)
+			log.Printf("\tNamespace: %s\n", namespace)
+			log.Printf("\tVolume: %s\n", volumeName)
+			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
 			if isEBSVolume(&volumeClaim) {
 				for k,v := range volumeClaim.Annotations {
 					if k == "volume.beta.kubernetes.io/additional-resource-tags" {
@@ -108,12 +124,6 @@ func main() {
 				}
 			}
 		}
-
-		if oneshot {
-			break
-		}
-		// Sleep 10 minutes
-		time.Sleep(600 * time.Millisecond)
 	}
 }
 
@@ -147,13 +157,13 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 
 	resp, err := svc.DescribeVolumes(params)
 	if err != nil {
-		fmt.Printf("Cannot get volume %s", awsVolume)
-		fmt.Println(err)
+		log.Printf("Cannot get volume %s", awsVolume)
+		log.Println(err)
 		return;
 	}
 	tags := strings.Split(awsTags, ";")
 	for i := range tags {
-		fmt.Printf("\tAdding tag %s to EBS Volume %s\n", tags[i], awsVolume)
+		log.Printf("\tAdding tag %s to EBS Volume %s\n", tags[i], awsVolume)
 		t := strings.Split(tags[i], "=")
 		if !hasTag(resp.Volumes[0].Tags, t[0], t[1]) {
 			setTag(svc, t[0], t[1], awsVolume)
@@ -175,11 +185,11 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
     }
     ret, err := svc.CreateTags(tags)
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
         return false
 	}
 	if verbose {
-		fmt.Println(ret)
+		log.Println(ret)
 	}
     return true
 }
@@ -187,7 +197,7 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
 func hasTag(tags []*ec2.Tag, Key string, value string) (bool) {
 	for i := range tags {
 		if *tags[i].Key == Key && *tags[i].Value == value {
-			fmt.Printf("\t\tTag %s already set with value %s\n", *tags[i].Key, *tags[i].Value)
+			log.Printf("\t\tTag %s already set with value %s\n", *tags[i].Key, *tags[i].Value)
 			return true
 		}
 	}
