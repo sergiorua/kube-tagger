@@ -28,34 +28,45 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func isEBSVolume(volume *v1.PersistentVolumeClaim) (bool) {
-	for k,v := range volume.Annotations {
-		if k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs" {
-			return true
-		}
+var verbose bool
+var local bool
+var kubeconfig string
+
+func init() {
+	flag.BoolVar(&verbose, "d", false, "Verbose")
+	flag.BoolVar(&local, "l", false, "Run outside kube cluster")
+
+	if home := homeDir(); home != "" {
+		flag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	}
-	return false
 }
 
-func main() {
-	var kubeconfig *string
-	if home := homeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
 
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
+func main() {
+	flag.Parse()
+	var config *rest.Config
+	var err error
+
+	if local == false {
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			panic(err.Error())
+		}
+	} else {
+		fmt.Println(kubeconfig)
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
 	}
 
 	// create the clientset
@@ -74,28 +85,38 @@ func main() {
 		volumeClaimName := volumeClaims.Items[i].GetName()
 		volumeClaim := volumeClaims.Items[i]
 		volumeName := volumeClaim.Spec.VolumeName
-		fmt.Println(volumeName)		
 
 		awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 		if errp != nil {
 			fmt.Printf("Cannot find EBS volme associated with %s: %s", volumeName, errp)
 			continue
 		}
-		awsVolumeId := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
+		awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
 		fmt.Printf("\nVolume Claim: %s\n", volumeClaimName)
 		fmt.Printf("\tNamespace: %s\n", namespace)
 		fmt.Printf("\tVolume: %s\n", volumeName)
-		fmt.Printf("\tAWS Volume ID: %s\n", awsVolumeId)
+		fmt.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
 		if isEBSVolume(&volumeClaim) {
 			for k,v := range volumeClaim.Annotations {
 				if k == "volume.beta.kubernetes.io/additional-resource-tags" {
-					addAWSTags(v, awsVolumeId)
+					addAWSTags(v, awsVolumeID)
 				}
 			}
 		}
 	}
 }
+
+
+func isEBSVolume(volume *v1.PersistentVolumeClaim) (bool) {
+	for k,v := range volume.Annotations {
+		if k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs" {
+			return true
+		}
+	}
+	return false
+}
+
 
 func addAWSTags(awsTags string, awsVolumeID string) {
 	awsRegion, awsVolume := splitVol(awsVolumeID)
@@ -120,13 +141,13 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 		fmt.Println(err)
 		return;
 	}
-	fmt.Println(resp)
-
 	tags := strings.Split(awsTags, ";")
 	for i := range tags {
 		fmt.Printf("\tAdding tag %s to EBS Volume %s\n", tags[i], awsVolume)
 		t := strings.Split(tags[i], "=")
-		setTag(svc, t[0], t[1], awsVolume)
+		if !hasTag(resp.Volumes[0].Tags, t[0], t[1]) {
+			setTag(svc, t[0], t[1], awsVolume)
+		}
 	}
 }
 
@@ -147,10 +168,21 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
         fmt.Println(err)
         return false
 	}
-	fmt.Println(ret)
+	if verbose {
+		fmt.Println(ret)
+	}
     return true
 }
 
+func hasTag(tags []*ec2.Tag, Key string, value string) (bool) {
+	for i := range tags {
+		if *tags[i].Key == Key && *tags[i].Value == value {
+			fmt.Printf("Tag %s already set with value %s\n", *tags[i].Key, *tags[i].Value)
+			return true
+		}
+	}
+	return false
+}
 
 /* Take a URL as returned by Kubernetes in the format
 
