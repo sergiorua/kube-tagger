@@ -111,6 +111,7 @@ func main() {
 			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
 			log.Printf("\nVolume Claim: %s\n", volumeClaimName)
+			log.Printf("\tEvent Type: %s", event.Type)
 			log.Printf("\tNamespace: %s\n", namespace)
 			log.Printf("\tVolume: %s\n", volumeName)
 			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
@@ -127,7 +128,9 @@ func main() {
 	}
 }
 
-
+/*
+	This only works for EBS volumes. Make sure they are!
+*/
 func isEBSVolume(volume *v1.PersistentVolumeClaim) (bool) {
 	for k,v := range volume.Annotations {
 		if k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs" {
@@ -137,7 +140,10 @@ func isEBSVolume(volume *v1.PersistentVolumeClaim) (bool) {
 	return false
 }
 
-
+/*
+	Loops through the tags found for the volume and calls `setTag`
+	to add it via the AWS api
+*/
 func addAWSTags(awsTags string, awsVolumeID string) {
 	awsRegion, awsVolume := splitVol(awsVolumeID)
 
@@ -171,6 +177,9 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 	}
 }
 
+/*
+	AWS api call to set the tag found in the annotations
+*/
 func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool {
     tags := &ec2.CreateTagsInput{
 		Resources: []*string{
@@ -194,6 +203,11 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
     return true
 }
 
+/* 
+   Check if the tag is already set. It wouldn't be a problem if it is
+   but if you're using cloudtrail it may be an issue seeing it
+   being set all muiltiple times
+*/
 func hasTag(tags []*ec2.Tag, Key string, value string) (bool) {
 	for i := range tags {
 		if *tags[i].Key == Key && *tags[i].Value == value {
@@ -216,6 +230,15 @@ func splitVol(vol string) (string, string) {
 	zone := re.ReplaceAllString(sp[2], "")
 
 	return zone, sp[3]
+}
+
+func stringInSlice(str string, list []string) bool {
+	for _, v := range list {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
 
 func homeDir() string {
