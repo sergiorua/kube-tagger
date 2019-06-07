@@ -2,18 +2,18 @@
 
 ## What?
 
-It's a simple pod that checks if volumes have the AWS tags required added.
+It's a simple pod that checks if AWS EBS volumes created by K8s have the AWS tags required.
 
 ## How?
 
-On your volume claims annotations add something like:
+On your volume claims add the tags into annotations like:
 
 ```yaml
 annotations:
   volume.beta.kubernetes.io/additional-resource-tags: Owner=Sergio;Environment=Dev
 ```
 
-Multiple tags are ; separated.
+Multiple tags are `;` separated.
 
 ## Deploy
 
