@@ -15,6 +15,33 @@ annotations:
 
 Multiple tags are `;` separated.
 
+You may need to grant your EC2 instances permissions to tag volumes. This is the minimal config expected:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCreateTaggedVolumes",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": "*"
+     },
+     {
+       "Effect": "Allow",
+       "Action": [
+         "ec2:CreateTags"
+       ],
+       "Resource": "arn:aws:ec2:*:*:volume/*",
+       "Condition": {
+         "StringEquals": {
+             "ec2:CreateAction" : "CreateTags"
+        }
+      }
+    }
+  ]
+}
+```
 ## Deploy
 
 See [kube-tagger.yaml](https://github.com/sergiorua/kube-tagger/blob/master/kube-tagger.yaml) for an example deployment.
