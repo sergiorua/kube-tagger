@@ -30,17 +30,24 @@ roleRef:
   name: kube-tagger
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: kube-tagger
   namespace: kube-system
   labels:
     app: kube-tagger
 spec:
-  serviceAccountName: kube-tagger
-  containers:
-  - name: kube-tagger
-    imagePullPolicy: Always
-    image: sergrua/kube-tagger:latest
-    command: ["/app/main"]
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-tagger
+  template:
+    metadata:
+      labels:
+        app: kube-tagger
+    spec:
+      containers:
+      - name: kube-tagger
+        image: sergrua/kube-tagger:latest
+        command: ["/app/main"]
