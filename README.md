@@ -10,10 +10,16 @@ On your volume claims add the tags into annotations like:
 
 ```yaml
 annotations:
-  volume.beta.kubernetes.io/additional-resource-tags: Owner=Sergio;Environment=Dev
+  volume.beta.kubernetes.io/additional-resource-tags: Owner=Sergio,Environment=Dev
 ```
 
-Multiple tags are `;` separated.
+Multiple tags are `,` separated by default but you can override it with:
+
+```yaml
+annotations:
+  volume.beta.kubernetes.io/additional-resource-tags-separator: ";"
+```
+
 
 You may need to grant your EC2 instances permissions to tag volumes. This is the minimal config expected:
 

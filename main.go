@@ -39,6 +39,7 @@ import (
 var verbose bool
 var local bool
 var kubeconfig string
+var separator string
 
 func init() {
 	flag.BoolVar(&verbose, "v", false, "Verbose")
@@ -105,10 +106,19 @@ func main() {
 			log.Printf("\tVolume: %s\n", volumeName)
 			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
 			if isEBSVolume(&volumeClaim) {
+				separator = ","
+				tagsToAdd := ""
 				for k, v := range volumeClaim.Annotations {
-					if k == "volume.beta.kubernetes.io/additional-resource-tags" {
-						addAWSTags(v, awsVolumeID)
+					if k == "volume.beta.kubernetes.io/additional-resource-tags-separator" {
+						separator = v
 					}
+
+					if k == "volume.beta.kubernetes.io/additional-resource-tags" {
+						tagsToAdd = v
+					}
+				}
+				if tagsToAdd != "" {
+					addAWSTags(tagsToAdd, awsVolumeID)
 				}
 			} else {
 				log.Printf("\t=> Volume is not EBS. Ignoring")
@@ -156,7 +166,7 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 		log.Println(err)
 		return
 	}
-	tags := strings.Split(awsTags, ";")
+	tags := strings.Split(awsTags, separator)
 	for i := range tags {
 		log.Printf("\tAdding tag %s to EBS Volume %s\n", tags[i], awsVolume)
 		t := strings.Split(tags[i], "=")
