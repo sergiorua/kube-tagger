@@ -47,6 +47,7 @@ spec:
       labels:
         app: kube-tagger
     spec:
+      serviceAccountName: kube-tagger
       containers:
       - name: kube-tagger
         image: sergrua/kube-tagger:latest
