@@ -170,6 +170,10 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 	for i := range tags {
 		log.Printf("\tAdding tag %s to EBS Volume %s\n", tags[i], awsVolume)
 		t := strings.Split(tags[i], "=")
+		if len(t) != 2 {
+			log.Printf("Malformed tag found, skipping: %v", t)
+			continue
+		}
 		if !hasTag(resp.Volumes[0].Tags, t[0], t[1]) {
 			setTag(svc, t[0], t[1], awsVolume)
 		}
