@@ -21,15 +21,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"regexp"
+	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/rest"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -50,7 +50,6 @@ func init() {
 		flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	}
 }
-
 
 func main() {
 	flag.Parse()
@@ -74,16 +73,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-
-	/* Current list at boot */
-	/* ** not currently used **
-	volumeClaims, err := clientset.CoreV1().PersistentVolumeClaims("").List(metav1.ListOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	log.Println(volumeClaims)
-	*/
 
 	watcher, err := clientset.CoreV1().PersistentVolumeClaims("").Watch(metav1.ListOptions{})
 	if err != nil {
@@ -116,7 +105,7 @@ func main() {
 			log.Printf("\tVolume: %s\n", volumeName)
 			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
 			if isEBSVolume(&volumeClaim) {
-				for k,v := range volumeClaim.Annotations {
+				for k, v := range volumeClaim.Annotations {
 					if k == "volume.beta.kubernetes.io/additional-resource-tags" {
 						addAWSTags(v, awsVolumeID)
 					}
@@ -131,8 +120,8 @@ func main() {
 /*
 	This only works for EBS volumes. Make sure they are!
 */
-func isEBSVolume(volume *v1.PersistentVolumeClaim) (bool) {
-	for k,v := range volume.Annotations {
+func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
+	for k, v := range volume.Annotations {
 		if k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs" {
 			return true
 		}
@@ -165,7 +154,7 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 	if err != nil {
 		log.Printf("Cannot get volume %s", awsVolume)
 		log.Println(err)
-		return;
+		return
 	}
 	tags := strings.Split(awsTags, ";")
 	for i := range tags {
@@ -181,34 +170,34 @@ func addAWSTags(awsTags string, awsVolumeID string) {
 	AWS api call to set the tag found in the annotations
 */
 func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool {
-    tags := &ec2.CreateTagsInput{
+	tags := &ec2.CreateTagsInput{
 		Resources: []*string{
 			aws.String(volumeID),
 		},
-        Tags: []*ec2.Tag{
-            {
-                Key:   aws.String(tagKey),
-                Value: aws.String(tagValue),
-            },
-        },
-    }
-    ret, err := svc.CreateTags(tags)
-    if err != nil {
-        log.Fatal(err)
-        return false
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String(tagKey),
+				Value: aws.String(tagValue),
+			},
+		},
+	}
+	ret, err := svc.CreateTags(tags)
+	if err != nil {
+		log.Fatal(err)
+		return false
 	}
 	if verbose {
 		log.Println(ret)
 	}
-    return true
+	return true
 }
 
-/* 
+/*
    Check if the tag is already set. It wouldn't be a problem if it is
    but if you're using cloudtrail it may be an issue seeing it
    being set all muiltiple times
 */
-func hasTag(tags []*ec2.Tag, Key string, value string) (bool) {
+func hasTag(tags []*ec2.Tag, Key string, value string) bool {
 	for i := range tags {
 		if *tags[i].Key == Key && *tags[i].Value == value {
 			log.Printf("\t\tTag %s already set with value %s\n", *tags[i].Key, *tags[i].Value)
@@ -220,9 +209,9 @@ func hasTag(tags []*ec2.Tag, Key string, value string) (bool) {
 
 /* Take a URL as returned by Kubernetes in the format
 
-	aws://eu-west-1b/vol-7iyw8ygidg
+aws://eu-west-1b/vol-7iyw8ygidg
 
-	and returns region and volume name
+and returns region and volume name
 */
 func splitVol(vol string) (string, string) {
 	sp := strings.Split(vol, "/")
