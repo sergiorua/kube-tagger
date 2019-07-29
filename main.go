@@ -39,7 +39,6 @@ import (
 var verbose bool
 var local bool
 var kubeconfig string
-var separator string
 
 func init() {
 	flag.BoolVar(&verbose, "v", false, "Verbose")
@@ -95,7 +94,7 @@ func main() {
 
 			awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 			if errp != nil {
-				log.Printf("Cannot find EBS volme associated with %s: %s", volumeName, errp)
+				log.Printf("Cannot find EBS volume associated with %s: %s", volumeName, errp)
 				continue
 			}
 			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
@@ -106,7 +105,7 @@ func main() {
 			log.Printf("\tVolume: %s\n", volumeName)
 			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
 			if isEBSVolume(&volumeClaim) {
-				separator = ","
+				separator := ","
 				tagsToAdd := ""
 				for k, v := range volumeClaim.Annotations {
 					if k == "volume.beta.kubernetes.io/additional-resource-tags-separator" {
@@ -118,7 +117,7 @@ func main() {
 					}
 				}
 				if tagsToAdd != "" {
-					addAWSTags(tagsToAdd, awsVolumeID)
+					addAWSTags(tagsToAdd, awsVolumeID, separator)
 				}
 			} else {
 				log.Printf("\t=> Volume is not EBS. Ignoring")
@@ -143,7 +142,7 @@ func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
 	Loops through the tags found for the volume and calls `setTag`
 	to add it via the AWS api
 */
-func addAWSTags(awsTags string, awsVolumeID string) {
+func addAWSTags(awsTags string, awsVolumeID string, separator string) {
 	awsRegion, awsVolume := splitVol(awsVolumeID)
 
 	/* Connect to AWS */
@@ -214,7 +213,9 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
 func hasTag(tags []*ec2.Tag, Key string, value string) bool {
 	for i := range tags {
 		if *tags[i].Key == Key && *tags[i].Value == value {
-			log.Printf("\t\tTag %s already set with value %s\n", *tags[i].Key, *tags[i].Value)
+			log.Printf("\t\tTag %s already set with value %s\n",
+				*tags[i].Key,
+				*tags[i].Value)
 			return true
 		}
 	}
