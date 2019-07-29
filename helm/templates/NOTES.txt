@@ -1,0 +1,20 @@
+The kube-tagger has been deployed. 
+{{ if .Values.global.name }}
+You can see the pod is running or not with below command
+command:
+  kubectl get pod kube-tagger -n kube-system
+
+NOTE: Please add the annotation as below to tag your PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    volume.beta.kubernetes.io/additional-resource-tags: Owner=Sandeep;Environment=Dev
+{{ else }}
+NOTE: Please add the annotation as below to tag your PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    volume.beta.kubernetes.io/additional-resource-tags: Owner=Sergio;Environment=Dev
+{{- end -}}

@@ -1,0 +1,27 @@
+replicas: 1
+
+global:
+  name: kube-tagger
+  namespace: kube-system
+
+rbac:
+  create: true
+  pspEnabled: false
+
+serviceAccount:
+  create: true
+
+image:
+  repository: sergrua/kube-tagger
+  tag: release-0.0.5
+  pullPolicy: Always
+  namespace: kube-system
+  backoffLimit: 3
+  containerPort: 8080
+
+extraEnv: {}
+resources:      {}
+nodeSelector:   {}
+tolerations:    []
+affinity:       {}
+podAnnotations: {}

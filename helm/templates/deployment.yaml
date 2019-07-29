@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.global.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ template "kube-tagger.name" . }}
+    chart: {{ template "kube-tagger.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "kube-tagger.name" . }}
+      chart: {{ template "kube-tagger.chart" . }}
+      release: {{ .Release.Name }}
+      heritage: {{ .Release.Service }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "kube-tagger.name" . }}
+        chart: {{ template "kube-tagger.chart" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
+    spec:
+      serviceAccountName: {{ .Values.global.name }}
+      containers:
+      - name: {{ .Values.global.name }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        command: ["/app/main"]
+    {{- if .Values.extraEnv }}
+        env:
+    {{ toYaml .Values.extraEnv | indent 6 -}}
+    {{- end -}}
