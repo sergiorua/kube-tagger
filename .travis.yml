@@ -7,6 +7,8 @@ services:
 - docker
 after_success:
 - test -n "$TRAVIS_TAG" && docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+before_install:
+- curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 install: env && dep ensure
 script: true
 deploy:
