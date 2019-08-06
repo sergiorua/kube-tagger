@@ -34,6 +34,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+
+   _ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 var verbose bool
