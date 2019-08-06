@@ -40,17 +40,19 @@ import (
 )
 
 var (
-	debug      = kingpin.Flag("debug", "Enable debug logging").Bool()
-	local      = kingpin.Flag("local", "Run locally for development").Bool()
-	kubeconfig = kingpin.Flag("kubeconfig", "Path to kubeconfig").OverrideDefaultFromEnvar("KUBECONFIG").String()
+	version    string = "snapshot"
+	debug             = kingpin.Flag("debug", "Enable debug logging").Bool()
+	local             = kingpin.Flag("local", "Run locally for development").Bool()
+	kubeconfig        = kingpin.Flag("kubeconfig", "Path to kubeconfig").OverrideDefaultFromEnvar("KUBECONFIG").String()
 )
 
 func init() {
-	kingpin.Version("0.0.1")
+	kingpin.Version(version)
 	kingpin.Parse()
 }
 
 func main() {
+
 	var config *rest.Config
 	var err error
 
