@@ -17,12 +17,11 @@ limitations under the License.
 package main
 
 import (
-	"flag"
-	"log"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,50 +34,47 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
-   _ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	"gopkg.in/alecthomas/kingpin.v2"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
-var verbose bool
-var local bool
-var kubeconfig string
+var (
+	debug      = kingpin.Flag("debug", "Enable debug logging").Bool()
+	local      = kingpin.Flag("local", "Run locally for development").Bool()
+	kubeconfig = kingpin.Flag("kubeconfig", "Path to kubeconfig").OverrideDefaultFromEnvar("KUBECONFIG").String()
+)
 
 func init() {
-	flag.BoolVar(&verbose, "v", false, "Verbose")
-	flag.BoolVar(&local, "l", false, "Run outside kube cluster (dev purposes)")
-
-	if home := homeDir(); home != "" {
-		flag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
-	}
+	kingpin.Version("0.0.1")
+	kingpin.Parse()
 }
 
 func main() {
-	flag.Parse()
 	var config *rest.Config
 	var err error
 
-	if local == false {
+	if !*local {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			panic(err.Error())
+			log.WithError(err).Fatal("Error building In Cluster Config")
 		}
 	} else {
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
-			panic(err.Error())
+			log.WithError(err).Fatalf("Error creating config from kubeconfig: %s", *kubeconfig)
 		}
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.WithError(err).Fatal("Error creating clientset")
 	}
 
 	watcher, err := clientset.CoreV1().PersistentVolumeClaims("").Watch(metav1.ListOptions{})
 	if err != nil {
-		log.Fatalln(err)
+		log.WithError(err).Fatal("Error creating PVC watcher")
 	}
 	/* changes */
 	ch := watcher.ResultChan()
@@ -86,7 +82,7 @@ func main() {
 	for event := range ch {
 		pvc, ok := event.Object.(*v1.PersistentVolumeClaim)
 		if !ok {
-			log.Fatal("unexpected type")
+			log.Fatal("unexpected event type")
 		}
 		if event.Type == watch.Added || event.Type == watch.Modified {
 			namespace := pvc.GetNamespace()
@@ -94,18 +90,20 @@ func main() {
 			volumeClaim := *pvc
 			volumeName := volumeClaim.Spec.VolumeName
 
+			eventLogger := log.WithFields(log.Fields{
+				"namespace":       namespace,
+				"volumeClaimName": volumeClaimName,
+				"volumeName":      volumeName,
+			})
+
 			awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 			if errp != nil {
-				log.Printf("Cannot find EBS volume associated with %s: %s", volumeName, errp)
+				eventLogger.WithError(errp).Error("Cannot find EBS volume associated with Volume Claim")
 				continue
 			}
 			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
-			log.Printf("\nVolume Claim: %s\n", volumeClaimName)
-			log.Printf("\tEvent Type: %s", event.Type)
-			log.Printf("\tNamespace: %s\n", namespace)
-			log.Printf("\tVolume: %s\n", volumeName)
-			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
+			eventLogger.WithFields(log.Fields{"awsVolumeID": awsVolumeID, "eventType": event.Type}).Info("Processing Volume Tags")
 			if isEBSVolume(&volumeClaim) {
 				separator := ","
 				tagsToAdd := ""
@@ -119,10 +117,10 @@ func main() {
 					}
 				}
 				if tagsToAdd != "" {
-					addAWSTags(tagsToAdd, awsVolumeID, separator)
+					addAWSTags(tagsToAdd, awsVolumeID, separator, *eventLogger)
 				}
 			} else {
-				log.Printf("\t=> Volume is not EBS. Ignoring")
+				eventLogger.Info("Volume is not EBS. Ignoring")
 			}
 		}
 	}
@@ -144,7 +142,8 @@ func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
 	Loops through the tags found for the volume and calls `setTag`
 	to add it via the AWS api
 */
-func addAWSTags(awsTags string, awsVolumeID string, separator string) {
+func addAWSTags(awsTags string, awsVolumeID string, separator string, l log.Entry) {
+
 	awsRegion, awsVolume := splitVol(awsVolumeID)
 
 	/* Connect to AWS */
@@ -161,18 +160,24 @@ func addAWSTags(awsTags string, awsVolumeID string, separator string) {
 		VolumeIds: []*string{&awsVolume},
 	}
 
+	tags := strings.Split(awsTags, separator)
+
+	tagLogger := log.WithFields(log.Fields{
+		"volume": awsVolume,
+		"region": awsRegion,
+		"tags":   tags,
+	})
+
 	resp, err := svc.DescribeVolumes(params)
 	if err != nil {
-		log.Printf("Cannot get volume %s", awsVolume)
-		log.Println(err)
+		tagLogger.WithError(err).Error("Cannot get volume")
 		return
 	}
-	tags := strings.Split(awsTags, separator)
 	for i := range tags {
-		log.Printf("\tAdding tag %s to EBS Volume %s\n", tags[i], awsVolume)
+		tagLogger.Info("Adding tag to EBS Volume")
 		t := strings.Split(tags[i], "=")
 		if len(t) != 2 {
-			log.Printf("Malformed tag found, skipping: %v", t)
+			tagLogger.WithFields(log.Fields{"tag": t}).Error("Skipping Malformed Tag")
 			continue
 		}
 		if !hasTag(resp.Volumes[0].Tags, t[0], t[1]) {
@@ -198,11 +203,11 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
 	}
 	ret, err := svc.CreateTags(tags)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("Error creating tags")
 		return false
 	}
-	if verbose {
-		log.Println(ret)
+	if *debug {
+		log.Debugf("Returned value from CreateTags call: %v", ret)
 	}
 	return true
 }
@@ -212,12 +217,10 @@ func setTag(svc *ec2.EC2, tagKey string, tagValue string, volumeID string) bool 
    but if you're using cloudtrail it may be an issue seeing it
    being set all muiltiple times
 */
-func hasTag(tags []*ec2.Tag, Key string, value string) bool {
+func hasTag(tags []*ec2.Tag, key string, value string) bool {
 	for i := range tags {
-		if *tags[i].Key == Key && *tags[i].Value == value {
-			log.Printf("\t\tTag %s already set with value %s\n",
-				*tags[i].Key,
-				*tags[i].Value)
+		if *tags[i].Key == key && *tags[i].Value == value {
+			log.WithFields(log.Fields{"key": key, "value": value}).Info("Tag value already exists")
 			return true
 		}
 	}
