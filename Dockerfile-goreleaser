@@ -1,0 +1,7 @@
+FROM scratch
+
+WORKDIR /app
+
+COPY ./kube-tagger /app
+
+ENTRYPOINT ["/app/kube-tagger"]
