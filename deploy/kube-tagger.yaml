@@ -12,7 +12,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: kube-tagger
-  namespace: kube-system
+  namespace: kube-tagger
 automountServiceAccountToken: true
 ---
 kind: ClusterRoleBinding
@@ -24,7 +24,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: kube-tagger
-  namespace: kube-system
+  namespace: kube-tagger
 roleRef:
   kind: ClusterRole
   name: kube-tagger
@@ -34,7 +34,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kube-tagger
-  namespace: kube-system
+  namespace: kube-tagger
   labels:
     app: kube-tagger
 spec:
@@ -50,5 +50,4 @@ spec:
       serviceAccountName: kube-tagger
       containers:
       - name: kube-tagger
-        image: sergrua/kube-tagger:latest
-        command: ["/app/main"]
+        image: jaxxstorm/kube-tagger:latest
