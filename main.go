@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"os"
 	"regexp"
 	"strings"
@@ -39,11 +40,16 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
+type ctxKey string
+
 var (
 	version    string = "snapshot"
 	debug             = kingpin.Flag("debug", "Enable debug logging").Bool()
 	local             = kingpin.Flag("local", "Run locally for development").Bool()
 	kubeconfig        = kingpin.Flag("kubeconfig", "Path to kubeconfig").OverrideDefaultFromEnvar("KUBECONFIG").String()
+	ns                = ctxKey("namespace")
+	pvcname           = ctxKey("volumeClaimName")
+	volname           = ctxKey("volumeName")
 )
 
 func init() {
@@ -51,7 +57,26 @@ func init() {
 	kingpin.Parse()
 }
 
+func logger(ctx context.Context, err error) *log.Entry {
+	entry := log.WithField("app", "kube-tagger")
+	if err != nil {
+		entry = entry.WithError(err)
+	}
+	if ns := ctx.Value(ns); ns != nil {
+		entry = entry.WithField("namespace", ns)
+	}
+	if pvcname := ctx.Value(pvcname); pvcname != nil {
+		entry = entry.WithField("volumeClaimName", pvcname)
+	}
+	if volname := ctx.Value(volname); volname != nil {
+		entry = entry.WithField("volumeName", volname)
+	}
+	return entry
+}
+
 func main() {
+
+	ctx := context.Background()
 
 	var config *rest.Config
 	var err error
@@ -71,12 +96,12 @@ func main() {
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.WithError(err).Fatal("Error creating clientset")
+		logger(ctx, err).Fatal("Error creating clientset")
 	}
 
 	watcher, err := clientset.CoreV1().PersistentVolumeClaims("").Watch(metav1.ListOptions{})
 	if err != nil {
-		log.WithError(err).Fatal("Error creating PVC watcher")
+		logger(ctx, err).Fatal("Error creating PVC watcher")
 	}
 	/* changes */
 	ch := watcher.ResultChan()
@@ -84,7 +109,7 @@ func main() {
 	for event := range ch {
 		pvc, ok := event.Object.(*v1.PersistentVolumeClaim)
 		if !ok {
-			log.Fatal("unexpected event type")
+			logger(ctx, nil).Fatal("Unexpected event type")
 		}
 		if event.Type == watch.Added || event.Type == watch.Modified {
 			namespace := pvc.GetNamespace()
@@ -92,20 +117,18 @@ func main() {
 			volumeClaim := *pvc
 			volumeName := volumeClaim.Spec.VolumeName
 
-			eventLogger := log.WithFields(log.Fields{
-				"namespace":       namespace,
-				"volumeClaimName": volumeClaimName,
-				"volumeName":      volumeName,
-			})
+			ctx = context.WithValue(ctx, ns, namespace)
+			ctx = context.WithValue(ctx, pvcname, volumeClaimName)
+			ctx = context.WithValue(ctx, volname, volumeName)
 
 			awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 			if errp != nil {
-				eventLogger.WithError(errp).Error("Cannot find EBS volume associated with Volume Claim")
+				logger(ctx, errp).Error("Cannot find EBS volume associated with Volume Claim")
 				continue
 			}
 			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
-
-			eventLogger.WithFields(log.Fields{"awsVolumeID": awsVolumeID, "eventType": event.Type}).Info("Processing Volume Tags")
+			logger(ctx, nil).Info("Processing Volume Tags")
+			//eventLogger.WithFields(log.Fields{"awsVolumeID": awsVolumeID, "eventType": event.Type}).Info("Processing Volume Tags")
 			if isEBSVolume(&volumeClaim) {
 				separator := ","
 				tagsToAdd := ""
@@ -119,10 +142,10 @@ func main() {
 					}
 				}
 				if tagsToAdd != "" {
-					addAWSTags(tagsToAdd, awsVolumeID, separator, *eventLogger)
+					addAWSTags(tagsToAdd, awsVolumeID, separator)
 				}
 			} else {
-				eventLogger.Info("Volume is not EBS. Ignoring")
+				logger(ctx, nil).Warn("Volume is not EBS. Ignoring")
 			}
 		}
 	}
@@ -144,7 +167,7 @@ func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
 	Loops through the tags found for the volume and calls `setTag`
 	to add it via the AWS api
 */
-func addAWSTags(awsTags string, awsVolumeID string, separator string, l log.Entry) {
+func addAWSTags(awsTags string, awsVolumeID string, separator string) {
 
 	awsRegion, awsVolume := splitVol(awsVolumeID)
 
