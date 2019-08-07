@@ -1,7 +1,10 @@
-FROM scratch
+FROM gcr.io/distroless/base
 
 WORKDIR /app
 
 COPY ./kube-tagger /app
+COPY ./docker/passwd /etc/passwd
+
+USER kube-tagger
 
 ENTRYPOINT ["/app/kube-tagger"]
