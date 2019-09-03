@@ -97,6 +97,10 @@ func main() {
 				log.Printf("Cannot find EBS volume associated with %s: %s", volumeName, errp)
 				continue
 			}
+			/* Skip on nil which can come up for example on EFS volumes */
+			if awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore == nil {
+				continue
+			}
 			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
 			log.Printf("\nVolume Claim: %s\n", volumeClaimName)
