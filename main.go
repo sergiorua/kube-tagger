@@ -101,7 +101,7 @@ func main() {
 
 				awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
 
-				log.Printf("\nVolume Claim: %s\n", volumeClaimName)
+				log.Printf("Volume Claim: %s\n", volumeClaimName)
 				log.Printf("\tEvent Type: %s", event.Type)
 				log.Printf("\tNamespace: %s\n", namespace)
 				log.Printf("\tVolume: %s\n", volumeName)
