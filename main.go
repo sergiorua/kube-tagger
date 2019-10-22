@@ -55,7 +55,7 @@ func main() {
 	flag.Parse()
 	var config *rest.Config
 	var err error
-	local = true
+	// local = true
 	if local == false {
 		config, err = rest.InClusterConfig()
 		if err != nil {
