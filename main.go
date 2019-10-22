@@ -55,7 +55,7 @@ func main() {
 	flag.Parse()
 	var config *rest.Config
 	var err error
-
+	local = true
 	if local == false {
 		config, err = rest.InClusterConfig()
 		if err != nil {
@@ -90,25 +90,23 @@ func main() {
 			namespace := pvc.GetNamespace()
 			volumeClaimName := pvc.GetName()
 			volumeClaim := *pvc
-			volumeName := volumeClaim.Spec.VolumeName
 
-			awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
-			if errp != nil {
-				log.Printf("Cannot find EBS volume associated with %s: %s", volumeName, errp)
-				continue
-			}
-			/* Skip on nil which can come up for example on EFS volumes */
-			if awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore == nil {
-				continue
-			}
-			awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
-
-			log.Printf("\nVolume Claim: %s\n", volumeClaimName)
-			log.Printf("\tEvent Type: %s", event.Type)
-			log.Printf("\tNamespace: %s\n", namespace)
-			log.Printf("\tVolume: %s\n", volumeName)
-			log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
 			if isEBSVolume(&volumeClaim) {
+				volumeName := volumeClaim.Spec.VolumeName
+				awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
+				if errp != nil {
+					log.Printf("Cannot find EBS volume associated with %s: %s", volumeName, errp)
+					continue
+				}
+
+				awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
+
+				log.Printf("\nVolume Claim: %s\n", volumeClaimName)
+				log.Printf("\tEvent Type: %s", event.Type)
+				log.Printf("\tNamespace: %s\n", namespace)
+				log.Printf("\tVolume: %s\n", volumeName)
+				log.Printf("\tAWS Volume ID: %s\n", awsVolumeID)
+
 				separator := ","
 				tagsToAdd := ""
 				for k, v := range volumeClaim.Annotations {
