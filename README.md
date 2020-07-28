@@ -28,9 +28,8 @@ You may need to grant your EC2 instances permissions to tag volumes. This is the
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "AllowCreateTaggedVolumes",
       "Effect": "Allow",
-      "Action": "ec2:CreateTags",
+      "Action": "ec2:DescribeVolumes",
       "Resource": "*"
      },
      {

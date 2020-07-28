@@ -10,6 +10,7 @@ rbac:
 
 serviceAccount:
   create: true
+  annotations: {}
 
 image:
   repository: sergrua/kube-tagger
