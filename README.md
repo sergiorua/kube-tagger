@@ -49,8 +49,41 @@ You may need to grant your EC2 instances permissions to tag volumes. This is the
 ```
 ## Deploy
 
+### Manual
+
 See [kube-tagger.yaml](https://github.com/sergiorua/kube-tagger/blob/master/kube-tagger.yaml) for an example deployment.
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/sergiorua/kube-tagger/master/kube-tagger.yaml
 ```
+
+### Helm
+
+```sh
+helm repo add kube-tagger https://sergiorua.github.io/kube-tagger
+helm upgrade --install kube-tagger kube-tagger/kube-tagger
+```
+
+#### Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| affinity | object | `{}` |  |
+| extraEnv | object | `{}` |  |
+| global.name | string | `"kube-tagger"` |  |
+| global.namespace | string | `"kube-system"` |  |
+| image.backoffLimit | int | `3` |  |
+| image.containerPort | int | `8080` |  |
+| image.namespace | string | `"kube-system"` |  |
+| image.pullPolicy | string | `"Always"` |  |
+| image.repository | string | `"sergrua/kube-tagger"` |  |
+| image.tag | string | `"release-0.0.9"` |  |
+| nodeSelector | object | `{}` |  |
+| podAnnotations | object | `{}` |  |
+| rbac.create | bool | `true` |  |
+| rbac.pspEnabled | bool | `false` |  |
+| replicas | int | `1` |  |
+| resources | object | `{}` |  |
+| serviceAccount.annotations | object | `{}` |  |
+| serviceAccount.create | bool | `true` |  |
+| tolerations | list | `[]` |  |

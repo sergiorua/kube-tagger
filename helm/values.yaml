@@ -14,7 +14,7 @@ serviceAccount:
 
 image:
   repository: sergrua/kube-tagger
-  tag: release-0.0.5
+  tag: release-0.0.9
   pullPolicy: Always
   namespace: kube-system
   backoffLimit: 3
