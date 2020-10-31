@@ -15,7 +15,7 @@ serviceAccount:
 image:
   repository: sergrua/kube-tagger
   tag: release-0.0.9
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   namespace: kube-system
   backoffLimit: 3
   containerPort: 8080
