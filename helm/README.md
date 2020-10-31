@@ -21,6 +21,13 @@ Helm Chart to inject TAGS to AWS EBS
 
 Kubernetes: `>=1.11.8-eks-7c34c0`
 
+## Install
+
+```sh
+helm repo add sergiorua https://sergiorua.github.io/helm-charts/
+helm upgrade --install kube-tagger sergiorua/kube-tagger
+```
+
 ## Values
 
 | Key | Type | Default | Description |

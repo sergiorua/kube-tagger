@@ -60,8 +60,8 @@ kubectl apply -f https://raw.githubusercontent.com/sergiorua/kube-tagger/master/
 ### Helm
 
 ```sh
-helm repo add kube-tagger https://sergiorua.github.io/kube-tagger
-helm upgrade --install kube-tagger kube-tagger/kube-tagger
+helm repo add sergiorua https://sergiorua.github.io/helm-charts/
+helm upgrade --install kube-tagger sergiorua/kube-tagger
 ```
 
 #### Values
