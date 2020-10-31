@@ -75,7 +75,7 @@ helm upgrade --install kube-tagger sergiorua/kube-tagger
 | image.backoffLimit | int | `3` |  |
 | image.containerPort | int | `8080` |  |
 | image.namespace | string | `"kube-system"` |  |
-| image.pullPolicy | string | `"Always"` |  |
+| image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"sergrua/kube-tagger"` |  |
 | image.tag | string | `"release-0.0.9"` |  |
 | nodeSelector | object | `{}` |  |
