@@ -133,7 +133,7 @@ func main() {
 */
 func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
 	for k, v := range volume.Annotations {
-		if k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs" || k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/ebs.csi.aws.com" {
+		if k == "volume.beta.kubernetes.io/storage-provisioner" && (v == "kubernetes.io/aws-ebs" || v == "kubernetes.io/ebs.csi.aws.com") {
 			return true
 		}
 	}
