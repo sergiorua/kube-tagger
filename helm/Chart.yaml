@@ -1,6 +1,6 @@
 name: kube-tagger
 description: Helm Chart to inject TAGS to EBS
-version: 3.1.0
+version: 3.2.0
 apiVersion: v1
 kubeVersion: ">=1.11.8-eks-7c34c0"
 tillerVersion: ">=2.11.1"
