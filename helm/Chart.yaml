@@ -7,7 +7,7 @@ tillerVersion: ">=2.11.1"
 keywords:
 - kube-tagger
 engine: gotpl
-appVersion: 0.0.9
+appVersion: 0.1.0
 home: https://github.com/sergiorua/kube-tagger
 deprecated: false
 maintainers:
