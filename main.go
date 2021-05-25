@@ -1,5 +1,5 @@
 /*
-Copyright 2019 Sergio Rua
+Copyright 2021 Sergio Rua
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ func main() {
 			volumeClaimName := pvc.GetName()
 			volumeClaim := *pvc
 
-			if isEBSVolume(&volumeClaim) {
+			if isVolumeSupported(&volumeClaim) {
 				volumeName := volumeClaim.Spec.VolumeName
 				awsVolume, errp := clientset.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 				if errp != nil {
@@ -122,18 +122,20 @@ func main() {
 					addAWSTags(tagsToAdd, awsVolumeID, separator)
 				}
 			} else {
-				log.Printf("\t=> Volume is not EBS. Ignoring")
+				log.Printf("\t=> Volume %s is not of a supported type. Ignoring", volumeClaim.Spec.VolumeName)
 			}
 		}
 	}
 }
 
 /*
-	This only works for EBS volumes. Make sure they are!
+	This only works for some volumes. NFS volumes for example cannot be be tagged.
 */
-func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
+func isVolumeSupported(volume *v1.PersistentVolumeClaim) bool {
 	for k, v := range volume.Annotations {
-		if k == "volume.beta.kubernetes.io/storage-provisioner" && (v == "kubernetes.io/aws-ebs" || v == "kubernetes.io/ebs.csi.aws.com") {
+		if (k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs") ||
+			(k == "pv.kubernetes.io/provisioned-by" && strings.Contains(v, "ebs.csi.aws.com")) ||
+			(k == "volume.beta.kubernetes.io/storage-provisioner" && strings.Contains(v, "ebs.csi.aws.com")) {
 			return true
 		}
 	}
