@@ -130,11 +130,10 @@ func main() {
 
 /*
 	This only works for EBS volumes. Make sure they are!
-	TODO: remove kuberentes.io/ebs.csi.aws.com after test
 */
 func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
 	for k, v := range volume.Annotations {
-		if k == "volume.beta.kubernetes.io/storage-provisioner" && (v == "kubernetes.io/aws-ebs" || v == "kubernetes.io/ebs.csi.aws.com" || v == "ebs.csi.aws.com") {
+		if k == "volume.beta.kubernetes.io/storage-provisioner" && (v == "kubernetes.io/aws-ebs" || v == "ebs.csi.aws.com") {
 			return true
 		}
 	}
