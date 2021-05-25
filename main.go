@@ -98,8 +98,19 @@ func main() {
 					log.Printf("Cannot find EBS volume associated with %s: %s", volumeName, errp)
 					continue
 				}
+				var awsVolumeID string
+				if isEBSVolume(&volumeClaim) {
+					awsVolumeID = awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
+				} else if isCSIVolume(&volumeClaim) {
+					awsVolumeID = awsVolume.Spec.PersistentVolumeSource.Cinder.VolumeID
+				} else {
+					continue
+				}
 
-				awsVolumeID := awsVolume.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID
+				if awsVolumeID == "" {
+					log.Printf("Volume ID for %s could not be found", volumeName)
+					continue
+				}
 
 				log.Printf("Volume Claim: %s\n", volumeClaimName)
 				log.Printf("\tEvent Type: %s", event.Type)
@@ -135,6 +146,25 @@ func isVolumeSupported(volume *v1.PersistentVolumeClaim) bool {
 	for k, v := range volume.Annotations {
 		if (k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs") ||
 			(k == "pv.kubernetes.io/provisioned-by" && strings.Contains(v, "ebs.csi.aws.com")) ||
+			(k == "volume.beta.kubernetes.io/storage-provisioner" && strings.Contains(v, "ebs.csi.aws.com")) {
+			return true
+		}
+	}
+	return false
+}
+
+func isEBSVolume(volume *v1.PersistentVolumeClaim) bool {
+	for k, v := range volume.Annotations {
+		if k == "volume.beta.kubernetes.io/storage-provisioner" && v == "kubernetes.io/aws-ebs" {
+			return true
+		}
+	}
+	return false
+}
+
+func isCSIVolume(volume *v1.PersistentVolumeClaim) bool {
+	for k, v := range volume.Annotations {
+		if (k == "pv.kubernetes.io/provisioned-by" && strings.Contains(v, "ebs.csi.aws.com")) ||
 			(k == "volume.beta.kubernetes.io/storage-provisioner" && strings.Contains(v, "ebs.csi.aws.com")) {
 			return true
 		}
