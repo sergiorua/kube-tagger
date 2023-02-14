@@ -1,5 +1,5 @@
 require (
-	github.com/aws/aws-sdk-go v1.33.13
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/json-iterator/go v1.1.7 // indirect
