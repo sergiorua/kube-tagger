@@ -28,7 +28,7 @@ require (
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/inf.v0 v0.9.0 // indirect
-	gopkg.in/yaml.v2 v2.2.4 // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 	k8s.io/klog v0.4.0 // indirect
 	k8s.io/utils v0.0.0-20190801114015-581e00157fb1 // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
